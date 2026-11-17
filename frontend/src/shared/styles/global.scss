@@ -1,0 +1,91 @@
+[data-state=light], [data-state=light] .tokens {
+  --scroll-bar-color:  #00000026;
+  --scroll-track-color: #0000000F;
+
+}
+
+[data-state=dark], [data-state=dark] .tokens {
+  --scroll-bar-color:  #FFFFFF2E;
+  --scroll-track-color: #FFFFFF1F;
+}
+
+
+
+@font-face {
+  font-family: "Roboto";
+  src: url(../assets/fonts/Roboto/Roboto-Regular.ttf) format('TrueType');
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "Roboto";
+  src: url(../assets/fonts/Roboto/Roboto-Medium.ttf) format('TrueType');
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: "Roboto";
+  src: url(../assets/fonts/Roboto/Roboto-Bold.ttf) format('TrueType');
+  font-weight: 600;
+}
+
+* {
+  font-family: "Roboto";
+  box-sizing: border-box;
+  --xenon-card-body-padding: 12px;
+
+}
+.xenon-card .xenon-card-head {
+  padding: 8px 12px;
+  min-height: 0;
+}
+#root {
+  background: var(--xenon-color-bg-layout);
+  min-height: 100vh;
+}
+::-webkit-scrollbar {
+  width: 6px;
+   height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background-color:  var(--scroll-track-color);
+  ;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scroll-bar-color);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color:  #46ACDB;
+}
+
+::-webkit-scrollbar-thumb:active {
+    background-color:  #005B9C;
+}
+
+[data-state="light"],
+[data-state="light"] .tokens {
+  --xenon-color-body-bg: #ECF0F3
+}
+
+[data-state="dark"],
+[data-state="dark"] .tokens {
+  --xenon-color-body-bg: #1D2529
+}
+
+@media print
+{    
+  #root {
+    padding-top: 30px;
+  }
+  .header {
+    display: none;
+  }
+
+  .table-container {
+    height: 100%
+  }
+
+} 

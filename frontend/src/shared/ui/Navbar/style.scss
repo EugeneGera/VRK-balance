@@ -1,0 +1,7 @@
+.xenon-menu-light.xenon-menu-horizontal >.xenon-menu-item::after, .xenon-menu-light>.xenon-menu.xenon-menu-horizontal >.xenon-menu-item::after, .xenon-menu-light.xenon-menu-horizontal >.xenon-menu-submenu::after, .xenon-menu-light>.xenon-menu.xenon-menu-horizontal >.xenon-menu-submenu::after {
+    bottom: -16px !important;
+}
+
+.xenon-menu-horizontal {
+    border-bottom: 0 !important;
+}

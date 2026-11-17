@@ -1,0 +1,24 @@
+.header {
+    background-color: var(--xenon-color-bg-container);
+    padding-block: 16px;
+    height: 75px;
+
+
+    &__content {
+        display: flex;
+        justify-content: space-between;
+    }
+    &__navbar {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        .xenon-menu-light.xenon-menu-horizontal > .xenon-menu-item::after {
+            bottom: -13px !important;
+        }
+    }
+    &__buttons {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+}

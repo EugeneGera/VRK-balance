@@ -1,0 +1,37 @@
+.table-container {
+  zoom: 0.8;
+  height: calc(50vh - 50px);
+  overflow-y: auto;
+}
+
+.scroll-area {
+  overflow: auto;
+
+  border-radius: var(--xenon-border-radius-lg);
+  border: var(--xenon-line-width, 1px) solid
+    var(--xenon-color-border-secondary, #f0f0f0);
+  width: 100%;
+  height: 68vh;
+}
+
+.table-header {
+  position: sticky;
+  top: 0;
+  z-index: 99;
+}
+
+.input {
+  width: 100%;
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+  }
+
+  .xenon-input-number-handler-wrap {
+    display: none;
+  }
+
+  .xenon-input-number-input {
+    background-color: var(--xenon-color-bg-container);
+  }
+}

@@ -1,0 +1,11 @@
+.directory-form {
+    &__fields {
+        overflow: auto;
+        height: 50vh;
+        padding-right: 5px;
+    }
+    &__button {
+        margin-top: 32px;
+        margin-left: auto;
+    }
+}

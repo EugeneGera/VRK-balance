@@ -1,0 +1,40 @@
+.directories-card {
+    width: 90%;
+    &__edit {
+        width: 50%;
+        height: 80vh;
+        .xenon-input-group-addon {
+            cursor: pointer;
+            padding-inline: 5px;
+            min-width: 25px;
+        }
+    }
+    &__subtitle {
+        color: var(--xenon-color-text-description) !important;
+        margin-bottom: 4px;
+    }
+    &__directory {
+        margin-block: 16px;
+    } 
+
+    &__warning {
+        margin: auto;
+        text-align: center;
+        color: var(--xenon-color-text-description) !important;
+    };
+}
+
+.directories-container {
+    margin-top: 20px;
+}
+
+.directories-table {
+    td, tr {
+        cursor: pointer;
+    }
+    &__row_selected {
+        td {
+            background-color: var(--xenon-control-outline);
+        }
+    }
+}

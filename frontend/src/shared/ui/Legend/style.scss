@@ -1,0 +1,42 @@
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__color {
+    width: 8px;
+    height: 8px;
+    border-radius: 100%;
+  }
+
+  &__name {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  &__line {
+    flex-grow: 1;
+    height: 1px;
+    background-color: var(--xenon-color-fill-content);
+  }
+
+  &__value {
+    font-weight: 500;
+    font-size: 16px;
+    white-space: nowrap;
+  }
+
+  &__separator {
+    width: 100%;
+    height: 1px;
+    background-color: var(--xenon-color-fill-content);
+    margin-top: 8px;
+  }
+}

@@ -1,0 +1,34 @@
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-bottom: 15px;
+    .xenon-divider-horizontal {
+        margin-block: 10px !important;
+    }
+    &__upload-text {
+        margin-top: 16px;
+        font-size: 16px !important;
+    }
+    &__upload-warning {
+        color: var(--xenon-color-text-description) !important;
+    }
+    &__file-layout {
+        padding: 16px; 
+        border-radius: 4px;
+        text-align: center;
+        color: var(--xenon-color-text-label)
+    }
+    &__inputs {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    &__input {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        position: relative;
+    }
+
+}

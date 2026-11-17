@@ -1,0 +1,28 @@
+.Loader {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  svg {
+    position: absolute;
+    top: 10%;
+    left: 10%;
+  }
+  &-Text {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-top: 10px;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    color: #0079c2;
+  }
+}
+
+.loader-container {
+  display: grid;
+  gap: 8px;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-items: center;
+}
