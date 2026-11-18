@@ -39,6 +39,9 @@ else:
     @application.after_request
     def add_custom_header(response : Response):
         response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Expose-Headers'] = 'X-Query-ID, X-Data-Snapshot'
         return response
     
     def init_db():
@@ -84,6 +87,11 @@ api.add_namespace(ns_info)
 api.add_namespace(ns_directory)
 api.add_namespace(ns_journal, path='/journal')
 api.add_namespace(ns_loading)
+
+from app.analytics.api import blueprint as analytics_blueprint
+application.register_blueprint(analytics_blueprint)
+from app.analytics.assistant import assistant_blueprint
+application.register_blueprint(assistant_blueprint)
 
 
 if Config.DEPLOY_MODE == 'local' and __name__ == '__main__' :

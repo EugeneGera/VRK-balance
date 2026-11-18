@@ -5,15 +5,18 @@ import { Filters } from "@/widgets/filters";
 import { StockMarketCard } from "./StockMarketCard";
 
 import "./style.scss";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { BalanceReport } from "@/features/balance-report/BalanceReport";
 import { ResourceCard } from "./ResourceCard";
 import { MainTable } from "./Table/MainTable";
 import { DetailsCard } from "./DetailsCard/DetailsCard";
 import { useGetWaterfallDataQuery } from "../api/waterfall";
-import { useSearchParams } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 import { Card } from "@tinkerbells/xenon-ui";
 
 export const Balance = () => {
+  const location = useLocation();
+  const [reportOpen, setReportOpen] = useState(!!location.state?.openReport);
   const channelsRef = useRef<HTMLDivElement | null>(null);
 
   const [searchParams] = useSearchParams();
@@ -39,7 +42,7 @@ export const Balance = () => {
           gridTemplateRows: "auto 1fr",
         }}
       >
-        <Filters />
+        <Filters onOpenReport={() => setReportOpen(true)} />
         <div className="channels">
           <div className="channels__resource" ref={channelsRef}>
             {waterfallData && mainWaterfallData && (
@@ -66,6 +69,7 @@ export const Balance = () => {
           </Card>
         </div>
       </Container>
+      <BalanceReport open={reportOpen} onClose={() => setReportOpen(false)} search={searchParams.toString()} />
     </div>
   );
 };

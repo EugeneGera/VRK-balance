@@ -1,0 +1,7 @@
+**
+!mcp_server/
+!mcp_server/**
+!agent_server/
+!agent_server/**
+**/__pycache__/
+**/*.pyc

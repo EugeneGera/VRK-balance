@@ -39,7 +39,7 @@ export const Navbar: FC = () => {
       mode="horizontal"
       selectedKeys={[current ?? "/balance_comission"]}
       items={items}
-      style={{ opacity: isPending ? 0.8 : 1, minWidth: "800px" }}
+      style={{ opacity: isPending ? 0.8 : 1, minWidth: 0, flex: 1 }}
     />
   );
 };

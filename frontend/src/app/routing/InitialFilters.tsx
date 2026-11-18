@@ -41,6 +41,7 @@ export const InitialFilters = ({ children }: { children: ReactNode }) => {
 
   return (
     <Navigate
+      state={location.state}
       to={{ pathname: location.pathname, search: `?${params.toString()}`, hash: location.hash }}
       replace
     />

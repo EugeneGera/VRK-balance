@@ -1,0 +1,19 @@
+{
+  "schema_version": "balance-controls-v1",
+  "base_dump_sha256": "b306bbebc50c0c3f32eb5939764e60cade9d0ed91d2e00baec3980b09e92acd5",
+  "cases": [
+    {"id":"november-gasoline","tool":"get_balance_summary","arguments":{"period":{"year":2025,"month_start":11},"categories":["Бензин АИ-92"]},"expected":{"production_plan":660,"opening_stock":104,"available_resource":722,"allocated_volume":657,"domestic_volume":371.2,"exchange_volume":216,"export_volume":223.8,"own_needs_volume":62,"unallocated_resource":65,"unmet_demand":18.7,"application_count":51},"check_ui":true},
+    {"id":"december-gasoline","tool":"get_balance_summary","arguments":{"period":{"year":2025,"month_start":12},"categories":["Бензин АИ-92"]},"expected":{"production_plan":740,"available_resource":797,"allocated_volume":734,"unallocated_resource":63,"exchange_volume":225.4,"application_count":54},"check_ui":true},
+    {"id":"all-units-separate","tool":"get_balance_summary","arguments":{"period":{"year":2025,"month_start":11}},"expected_unit_ids":[1,2,3]},
+    {"id":"basis-details","tool":"get_balance_details","arguments":{"period":{"year":2025,"month_start":11},"categories":["Бензин АИ-92"],"group_by":["basis"]},"expected_rows":4},
+    {"id":"period-comparison","tool":"compare_periods","arguments":{"baseline":{"year":2025,"month_start":11},"comparison":{"year":2025,"month_start":12},"categories":["Бензин АИ-92"],"metrics":["allocated_volume"]},"expected_change":{"metric":"allocated_volume","absolute_change":77}},
+    {"id":"empty-period","tool":"get_balance_summary","arguments":{"period":{"year":2023,"month_start":11},"categories":["Бензин АИ-92"]},"expected_status":"empty"},
+    {"id":"unknown-product","tool":"get_balance_summary","arguments":{"period":{"year":2025,"month_start":11},"products":["Несуществующий продукт"]},"expected_error":"unknown_filter"},
+    {"id":"invalid-month","tool":"get_balance_summary","arguments":{"period":{"year":2025,"month_start":13}},"expected_error":"invalid_period"},
+    {"id":"known-zero","tool":"get_balance_summary","arguments":{"period":{"year":2024,"month_start":1},"categories":["Бензин АИ-92"]},"expected":{"production_plan":0,"available_resource":0,"allocated_volume":0,"unallocated_resource":0,"utilization_percent":null},"check_ui":true},
+    {"id":"missing-values","tool":"get_balance_summary","arguments":{"period":{"year":2024,"month_start":2},"categories":["Бензин АИ-92"]},"expected":{"production_plan":null,"available_resource":null,"allocated_volume":null,"unallocated_resource":null},"check_ui":true},
+    {"id":"zero-baseline","tool":"compare_periods","arguments":{"baseline":{"year":2024,"month_start":1},"comparison":{"year":2025,"month_start":11},"categories":["Бензин АИ-92"],"metrics":["allocated_volume"]},"expected_change":{"metric":"allocated_volume","absolute_change":657,"percent_change":null,"null_reason":"zero_baseline"}},
+    {"id":"catalog","tool":"get_data_catalog","arguments":{}},
+    {"id":"filter-values","tool":"get_filter_values","arguments":{"period":{"year":2025,"month_start":1,"month_end":12}},"expected_products":33}
+  ]
+}

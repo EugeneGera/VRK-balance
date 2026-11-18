@@ -4,7 +4,6 @@ from sqlalchemy.orm import scoped_session
 from app.entities.schemas import products_list_schema, basises_list_schema, category_products_list_schema
 from app.repositories.dict_repositories import DealCategoryDictRepository, ProductDictRepository, ShippingBasisDictRepository, TransDirDictRepository, UnitDictRepository, ProductCategoryDictRepository
 from app.repositories.shipments_repository import ShipmentsRepository
-from app.services.utils import FilterSessionService
 
 class InfoService:
     def __init__(self, session: scoped_session):
@@ -41,18 +40,9 @@ class InfoService:
                                    months: List[int],
                                    products: Optional[Union[List[str], str]] = None,
                                    product_categories: Optional[Union[List[str], str]] = None):
-        if product_categories is None:
-            product_filters = FilterSessionService.get_filters('product_filters')
-            product_categories = None if product_filters is None else product_filters['category_product_names']
-
         names_list = [basis.name for basis in self.shipments_repository.get_working_basises(year=year, months=months, product_names=products, category_names=product_categories)]
         return basises_list_schema.dump({'shipping_basises': names_list})
     
     def get_products_names_filtered(self, category_product: Optional[Union[List[str], str]] = None):
-        if category_product is None:
-            category_product_filters = FilterSessionService.get_filters('category_product_filters')
-            category_product = None if category_product_filters is None else category_product_filters[
-                'category_product_names']
-
         products = self.shipments_repository.get_working_products(category_names=category_product)
         return products_list_schema.dump({'products': [p.name for p in products]})

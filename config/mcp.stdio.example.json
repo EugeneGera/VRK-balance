@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "production-balance": {
+      "command": "/absolute/path/to/project/.venv-mcp/bin/python",
+      "args": ["/absolute/path/to/project/mcp_server/server.py", "--transport", "stdio"],
+      "env": {
+        "BALANCE_ANALYTICS_URL": "http://127.0.0.1:5001",
+        "BALANCE_ANALYTICS_TOKEN": "replace-with-token-from-local-env"
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "production-balance": {
+      "url": "http://127.0.0.1:8001/mcp",
+      "headers": {
+        "Authorization": "Bearer replace-with-token-from-local-env"
+      }
+    }
+  }
+}

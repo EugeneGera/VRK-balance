@@ -128,6 +128,8 @@ export const createHighchartsBarOptions = (
     }
   });
 
+  const valueSuffix = type === "percent" ? "%" : "";
+
   return {
     chart: {
       type: "bar",
@@ -196,6 +198,10 @@ export const createHighchartsBarOptions = (
     legend: {
       enabled: false,
     },
+    tooltip: {
+      valueDecimals: 2,
+      valueSuffix,
+    },
     plotOptions: {
       bar: {
         groupPadding: 0.1,
@@ -207,10 +213,10 @@ export const createHighchartsBarOptions = (
           enabled: true,
           color: "#fff",
           formatter: function (this) {
-            if (this.y === 0) {
+            if (this.y == null || this.y === 0) {
               return "";
             }
-            return this.y;
+            return this.y.toFixed(2) + valueSuffix;
           },
         },
       },

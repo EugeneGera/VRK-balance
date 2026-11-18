@@ -1,0 +1,31 @@
+services:
+  db:
+    environment:
+      PGDATA: /var/lib/postgresql_15/data
+  bcp_backend:
+    environment:
+      BALANCE_ANALYTICS_TOKENS: ${BALANCE_ANALYTICS_TOKENS:?Set BALANCE_ANALYTICS_TOKENS to a JSON token registry}
+      BALANCE_ASSISTANT_TOKEN: ${BALANCE_ASSISTANT_TOKEN:-}
+      BALANCE_AGENT_URL: http://balance_agent:8002
+  balance_mcp:
+    build:
+      context: .
+      dockerfile: mcp_server/Dockerfile
+    environment:
+      BALANCE_ANALYTICS_URL: http://bcp_backend:5001
+    ports:
+      - "127.0.0.1:8001:8001"
+    depends_on:
+      - bcp_backend
+    restart: unless-stopped
+  balance_agent:
+    build:
+      context: .
+      dockerfile: agent_server/Dockerfile
+    environment:
+      BALANCE_MCP_URL: http://balance_mcp:8001/mcp
+      BALANCE_OLLAMA_URL: ${BALANCE_OLLAMA_URL:-http://host.docker.internal:11434}
+      BALANCE_OLLAMA_MODEL: ${BALANCE_OLLAMA_MODEL:-qwen3.5:4b-q4_K_M}
+    depends_on:
+      - balance_mcp
+    restart: unless-stopped

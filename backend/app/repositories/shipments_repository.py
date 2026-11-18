@@ -29,7 +29,7 @@ class ShipmentsRepository(BaseRepository, DateFilterMixin, ShipmentsFilterMixin,
             .join(ProductCategoryDictModel, ProductCategoryDictModel.id == ShipmentsModel.product_category_id)
             .join(ProductDictModel, ProductDictModel.id == ShipmentsModel.product_id)
             .filter(
-                ShipmentsModel.year > 0,
+                ShipmentsModel.year.between(1, 9999),
                 ShipmentsModel.month.between(1, 12),
                 ProductCategoryDictModel.name.isnot(None),
                 ProductCategoryDictModel.name.notin_(['', '0']),

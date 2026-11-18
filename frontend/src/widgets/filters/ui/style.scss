@@ -16,15 +16,15 @@
   max-width: 402px;
 }
 
-.xenon-picker-panels > *:first-child button.xenon-picker-header-next-btn {
+.xenon-picker-dropdown:not(.balance-report-calendar) .xenon-picker-panels > *:first-child button.xenon-picker-header-next-btn {
   visibility: visible !important;
 }
 
-.xenon-picker-panels > *:first-child button.xenon-picker-header-super-next-btn {
+.xenon-picker-dropdown:not(.balance-report-calendar) .xenon-picker-panels > *:first-child button.xenon-picker-header-super-next-btn {
   visibility: visible !important;
 }
 
-.xenon-picker-panels .xenon-picker-panel:last-child {
+.xenon-picker-dropdown:not(.balance-report-calendar) .xenon-picker-panels .xenon-picker-panel:last-child {
   display: none !important;
 }
 

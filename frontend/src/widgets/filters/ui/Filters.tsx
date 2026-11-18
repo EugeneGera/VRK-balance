@@ -20,7 +20,7 @@ import { useAppDispatch } from "@/app/store";
 import { setExpanded } from "@/pages/balance/model/mainTableSlice";
 import { setSuccsessUpload } from "../models/successUploadSlice";
 
-export const Filters: FC = () => {
+export const Filters: FC<{onOpenReport?: () => void}> = ({onOpenReport}) => {
   const {
     isJournalPage,
     selectedFactories,
@@ -114,7 +114,8 @@ export const Filters: FC = () => {
               <SavedButton />
             </>
           ) : (
-            <Button onClick={printClick}>Печать </Button>
+            <>{onOpenReport && <Button color="primary" variant="solid" onClick={onOpenReport}>Подготовить отчёт</Button>}
+            <Button onClick={printClick}>Печать </Button></>
           )}
         </div>
       </div>

@@ -1,3 +1,11 @@
+.PHONY: start stop start-full
+start:
+	python3 scripts/start.py
+stop:
+	python3 scripts/start.py --stop
+start-full:
+	python3 scripts/start.py --quality
+
 build-dev:
 	docker compose -f docker-compose.dev.yaml up --build -d
 	docker exec -i bcp_PGDB psql -U postgres -d balance_comission < BK.sql

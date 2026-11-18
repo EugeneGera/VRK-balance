@@ -15,7 +15,7 @@ sankey_parser.add_argument('basises', required=False, type=str,
 sankey_parser_with_date = sankey_parser.copy()
 sankey_parser_with_date.add_argument('year', required=False, type=int, default=datetime.now().year, help='year (current by default)')
 sankey_parser_with_date.add_argument('month_start', required=False, type=int, default=datetime.now().month, help='month (current by default)')
-# sankey_parser_with_date.add_argument('month_end', required=False, type=int, default=None, help='month (current by default)')
+sankey_parser_with_date.add_argument('month_end', required=False, type=int, default=None, help='last month, inclusive (defaults to month_start)')
 
 sankey_parser_with_date_mode = sankey_parser_with_date.copy()
 sankey_parser_with_date_mode.add_argument('grouping_mode', required=False, type=str, default='factories', help='sankey grouping mode (\'factories\' by default or \'products\')')
@@ -88,9 +88,6 @@ def exceptions_codes_docs(ns: Namespace, codes : Optional[List[int]] = None):
             
 
 def get_months(args: Dict, limit: Optional[int] = None):
-    if not args.get('month_end', None):
-        return [args['month_start']]
-    months = list(range(args['month_start'], args['month_end'] + 1))
-    if limit:
-        return months[:min(args['month_end'] - args['month_start'] + 1, limit)]
-    return months
+    from app.analytics.contracts import Period
+    values = {key: args[key] for key in ('year', 'month_start', 'month_end') if args.get(key) is not None}
+    return list(Period.parse(values).months)
