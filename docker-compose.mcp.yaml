@@ -26,6 +26,7 @@ services:
       BALANCE_MCP_URL: http://balance_mcp:8001/mcp
       BALANCE_OLLAMA_URL: ${BALANCE_OLLAMA_URL:-http://host.docker.internal:11434}
       BALANCE_OLLAMA_MODEL: ${BALANCE_OLLAMA_MODEL:-qwen3.5:4b-q4_K_M}
+      BALANCE_EXPERIMENT_DIGEST: ${BALANCE_EXPERIMENT_DIGEST:-}
     depends_on:
       - balance_mcp
     restart: unless-stopped

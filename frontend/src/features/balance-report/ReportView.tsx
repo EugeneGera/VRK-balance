@@ -22,7 +22,7 @@ export function ReportView({report}: {report: Report}) {
   const [copied,setCopied] = useState(false);
   const [copyError,setCopyError] = useState(false);
   const copy = async () => {
-    const text = [report.text,...report.tables.map(table => `${table.title} (${periodLabel(table.period)})\n` + table.rows.map(row =>
+    const text = [report.text, `ID попытки: ${report.attempt_id}`, ...report.tables.map(table => `${table.title} (${periodLabel(table.period)})\n` + table.rows.map(row =>
       table.kind === "comparison" ? `${row.label}: ${number(row.baseline)} → ${number(row.comparison)} ${row.unit}; изменение ${number(row.absolute_change)} ${row.change_unit}; ${number(row.percent_change)} %` :
         `${row.label}: ${number(row.value)} ${row.unit}`).join("\n")),
       ...report.sources.map(source => `Источник: ${source.query_id}; снимок: ${source.snapshot_id}`)].join("\n\n");
@@ -36,6 +36,9 @@ export function ReportView({report}: {report: Report}) {
       <button type="button" className="balance-report-text-button" onClick={copy}>{copied ? "Скопировано" : "Копировать отчёт"}</button>
     </div>
     {copyError && <p role="status">Не удалось скопировать автоматически. Можно выделить текст отчёта.</p>}
+    {report.execution_mode === "template" && report.fallback_reason !== "empty_data" && (
+      <p className="balance-report-notice" role="status">Выводы недоступны. Показан отчёт по шаблону.</p>
+    )}
     <Narrative text={report.text} />
     {report.tables.map((table,index) => <section className="balance-report-report__table" key={`${table.query_id}-${index}`}>
       <h3>{table.title} <span>{table.unit.name}</span></h3>
@@ -53,6 +56,7 @@ export function ReportView({report}: {report: Report}) {
       </table></div>
     </section>)}
     {report.sources.length > 0 && <details className="balance-report-sources"><summary>Данные отчёта · {report.sources.length} {report.sources.length === 1 ? "запрос" : "запроса"}</summary>
+      <p>ID попытки <code>{report.attempt_id}</code></p>
       {report.sources.map(source => <div className="balance-report-source" key={source.query_id}>
         <p><strong>{periodLabel(source.period)}</strong>{source.baseline && ` · сравнение с ${periodLabel(source.baseline)}`}</p>
         <p>{source.filters.categories.map(item => item.name).join(", ") || "Все разрешённые категории"}</p>

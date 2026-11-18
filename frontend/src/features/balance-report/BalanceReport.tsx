@@ -11,22 +11,26 @@ import {
   validPeriod,
   type ChatInput,
   type Period,
-  type Report,
+  type AnalystResponse,
+  type Context,
 } from "./api";
 import { ReportView } from "./ReportView";
 import "./style.scss";
 
-type Mode = "summary" | "comparison" | "details";
+type Mode = "task" | "summary" | "comparison" | "details";
 type MonthRange = [Dayjs | null, Dayjs | null] | null;
 
 type Result = {
-  report: Report;
+  reply: AnalystResponse;
+  context: Context;
+  task: string;
   baseline?: Period;
   question?: string;
   history: ChatInput["history"];
 };
 
 const modes: {value: Mode; label: string}[] = [
+  {value: "task", label: "Задание"},
   {value: "summary", label: "Сводка"},
   {value: "comparison", label: "Сравнение"},
   {value: "details", label: "По базисам"},
@@ -60,13 +64,15 @@ function formatPeriod(period: Period) {
 function ReportContent({search}: {search: string}) {
   const context = contextFromSearch(search);
   const hasPeriod = validPeriod(context.period);
-  const [mode, setMode] = useState<Mode>("summary");
+  const [mode, setMode] = useState<Mode>("task");
   const [months, setMonths] = useState(() => toMonthRange(previousPeriod(context.period)));
   const [result, setResult] = useState<Result | null>(null);
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState<"report" | "question" | null>(null);
   const [error, setError] = useState("");
   const active = useRef<AbortController | null>(null);
+  const attemptId = useRef<string | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const resultAnchor = useRef<HTMLDivElement | null>(null);
 
   const baseline = mode === "comparison" ? toPeriod(months) : undefined;
@@ -77,52 +83,68 @@ function ReportContent({search}: {search: string}) {
   useEffect(() => () => active.current?.abort(), []);
 
   useEffect(() => {
-    if (result?.question) resultAnchor.current?.scrollIntoView({block: "start"});
+    if (result?.reply.kind === "clarification") inputRef.current?.focus();
+    else if (result?.question) resultAnchor.current?.scrollIntoView({block: "start"});
   }, [result]);
 
   function resetResult() {
     active.current?.abort();
     active.current = null;
+    attemptId.current = null;
     setPending(null);
     setResult(null);
     setQuestion("");
     setError("");
   }
 
-  async function run(followUp = false) {
-    if (active.current || !canGenerate) return;
+  async function run(useText = false) {
+    if (active.current || !canGenerate || (!useText && mode === "task")) return;
 
-    const message = followUp ? question.trim() : undefined;
-    if (followUp && (!result || !message)) return;
-
+    const message = useText ? question.trim() : undefined;
+    if (useText && !message) return;
+    const previous = useText ? result : null;
+    const task = previous?.task || message || modeLabel;
+    if (!useText || !attemptId.current) attemptId.current = globalThis.crypto?.randomUUID?.() ?? null;
     const input: ChatInput = {
-      action: followUp ? "chat" : mode,
-      context,
-      baseline: followUp ? result?.baseline : baseline,
+      action: useText || mode === "task" ? "chat" : mode,
+      context: previous?.context ?? context,
+      baseline: previous?.baseline ?? baseline,
+      attempt_id: attemptId.current ?? undefined,
+      task,
       message,
-      history: followUp ? result?.history ?? [] : [],
+      history: previous?.history ?? [],
     };
     const controller = new AbortController();
     active.current = controller;
     setError("");
-    setPending(followUp ? "question" : "report");
-    if (!followUp) {
+    setPending(useText ? "question" : "report");
+    if (!useText) {
       setResult(null);
       setQuestion("");
     }
 
     try {
-      const report = await assistantRequest<Report>("chat", controller.signal, input);
+      const reply = await assistantRequest<AnalystResponse>("chat", controller.signal, input);
       if (controller.signal.aborted) return;
+      attemptId.current = reply.attempt_id;
       const exchange: ChatInput["history"] = [
-        {role: "user", content: message || modeLabel},
-        {role: "assistant", content: report.text.slice(0, 1600)},
+        {role: "user", content: (message || modeLabel).slice(0, 1600)},
+        {role: "assistant", content: reply.text.slice(0, 1600)},
       ];
+      // A single data selection provides the operating context for the next turn.
+      const source = reply.kind === "report" && reply.sources.length === 1 ? reply.sources[0] : undefined;
       setResult({
-        report,
-        baseline: input.baseline,
-        question: message,
-        history: [...input.history, ...exchange].slice(-4),
+        reply,
+        task,
+        context: source ? {
+          period: source.period,
+          categories: source.filters.categories.map(item => item.name),
+          products: source.filters.products.map(item => item.name),
+          basises: source.filters.basises.map(item => item.name),
+        } : input.context,
+        baseline: source?.baseline ?? input.baseline,
+        question: previous ? message : undefined,
+        history: [...input.history, ...exchange].slice(-6),
       });
       setQuestion("");
     } catch (failure) {
@@ -136,6 +158,41 @@ function ReportContent({search}: {search: string}) {
       }
     }
   }
+
+  const clarification = result?.reply.kind === "clarification" ? result.reply : null;
+  const report = result?.reply.kind === "report" ? result.reply : null;
+  const inputLabel = clarification ? "Ответ на уточнение" : report ? "Уточнить отчёт" : "Задание";
+  const composer = (
+    <form className="balance-report-composer" onSubmit={event => {
+      event.preventDefault();
+      void run(true);
+    }}>
+      {clarification && (
+        <div className="balance-report-notice" role="status">
+          {clarification.text}
+          <small>ID попытки {clarification.attempt_id}</small>
+        </div>
+      )}
+      <label htmlFor="balance-report-question">{inputLabel}</label>
+      <textarea
+        ref={inputRef}
+        id="balance-report-question"
+        placeholder={report ? "Например, покажи распределение по базисам" :
+          clarification ? "Укажите недостающие данные" : "Например, подготовь сводку по выбранному периоду"}
+        value={question}
+        maxLength={4000}
+        rows={2}
+        onChange={event => setQuestion(event.target.value)}
+        disabled={!!pending}
+      />
+      <div className="balance-report-form-buttons">
+        {mode === "task" && result && <Button type="button" variant="outline" onClick={resetResult}>Новое задание</Button>}
+        <Button type="submit" loading={pending === "question"} disabled={!!pending || !question.trim() || !canGenerate}>
+          {clarification || report ? "Отправить" : "Выполнить задание"}
+        </Button>
+      </div>
+    </form>
+  );
 
   return (
     <div className="balance-report">
@@ -168,7 +225,7 @@ function ReportContent({search}: {search: string}) {
           />
         </div>
 
-        <div className="balance-report-actions">
+        {mode !== "task" && <div className="balance-report-actions">
           {mode === "comparison" && (
             <div className="balance-report-field balance-report-period">
               <span id="balance-report-baseline" className="balance-report-field-label">С чем сравнить</span>
@@ -199,44 +256,29 @@ function ReportContent({search}: {search: string}) {
           >
             {submitLabel}
           </Button>
-        </div>
+        </div>}
       </div>
 
+      {mode === "task" && composer}
       {pending === "report" && (
         <p className="balance-report-pending" role="status">Подготавливаем отчёт…</p>
       )}
 
-      {result && (
+      {report && (
         <div ref={resultAnchor} className="balance-report-result">
-          {result.question && <p className="balance-report-question">{result.question}</p>}
-          <ReportView key={result.report.id} report={result.report} />
+          {result?.question && <p className="balance-report-question">{result.question}</p>}
+          <ReportView key={report.id} report={report} />
         </div>
       )}
 
-      {error && <div className="balance-report-notice is-error" role="alert">{error}</div>}
-
-      {result && (
-        <form className="balance-report-composer" onSubmit={event => {
-          event.preventDefault();
-          void run(true);
-        }}>
-          <label htmlFor="balance-report-question">Уточнить отчёт</label>
-          <textarea
-            id="balance-report-question"
-            placeholder="Например, покажи распределение по базисам"
-            value={question}
-            maxLength={4000}
-            rows={2}
-            onChange={event => setQuestion(event.target.value)}
-            disabled={!!pending}
-          />
-          <div>
-            <Button type="submit" loading={pending === "question"} disabled={!!pending || !question.trim()}>
-              Отправить
-            </Button>
-          </div>
-        </form>
+      {error && (
+        <div className="balance-report-notice is-error" role="alert">
+          {error}
+          {attemptId.current && <small>ID попытки {attemptId.current}</small>}
+        </div>
       )}
+
+      {mode !== "task" && result && composer}
     </div>
   );
 }

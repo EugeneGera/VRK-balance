@@ -2,6 +2,7 @@ import copy
 import json
 from types import SimpleNamespace
 import unittest
+from uuid import uuid4
 
 import httpx
 from starlette.testclient import TestClient
@@ -94,15 +95,46 @@ class AnalystTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_model_tool_loop_adds_actual_sources_and_keeps_context(self):
         model=FakeModel(True,[dict(role='assistant',content='',tool_calls=[dict(function=dict(name='get_balance_details',
-            arguments=dict(period=dict(year=2025,month_start=11),group_by=['basis'])))]),
+            arguments=dict(period=dict(year=2025,month_start=12),group_by=['basis'])))]),
             dict(role='assistant',content='Распределено 657 тыс. т.')])
         analyst=self.make(model)
-        result=await analyst.run(chat_request(action='chat',message='Разбей по базисам'),'limited-caller')
+        result=await analyst.run(chat_request(action='chat',message='Разбей декабрь 2025 по базисам'),'limited-caller')
         self.assertEqual(result['mode'],'local_model')
-        self.assertEqual(len(result['sources']),2)
-        self.assertEqual(result['tables'][1]['title'],'Север')
+        self.assertEqual([name for name, _ in self.mcp.calls], ['get_data_catalog', 'get_balance_details'])
+        self.assertEqual(len(result['sources']), 1)
+        self.assertEqual(result['sources'][0]['period']['month_start'], 12)
+        self.assertEqual(result['tables'][0]['title'], 'Север')
         self.assertEqual(model.requests[1][-1]['role'],'tool')
         self.assertEqual(self.tokens,['limited-caller'])
+
+    async def test_question_after_an_intro_survives_a_line_break(self):
+        model = FakeModel(True, [dict(role='assistant', content='Нужен период.\nС каким месяцем сравнить?')])
+        result = await self.make(model).run(chat_request(action='chat', message='Сравни периоды'), 'caller')
+        self.assertEqual(result['kind'], 'clarification')
+        self.assertEqual(result['text'], 'С каким месяцем сравнить?')
+
+    async def test_clarification_tool_returns_the_question_without_querying_balance_data(self):
+        model = FakeModel(True, [dict(role='assistant', tool_calls=[dict(function=dict(
+            name='ask_clarification', arguments={'question': 'С каким месяцем сравнить?'}))])])
+        result = await self.make(model).run(chat_request(action='chat', message='Сравни периоды'), 'caller')
+        self.assertEqual(result['kind'], 'clarification')
+        self.assertEqual(result['text'], 'С каким месяцем сравнить?')
+        self.assertEqual(result['execution_mode'], 'agent')
+        self.assertEqual([name for name, _ in self.mcp.calls], ['get_data_catalog'])
+
+    async def test_unsupported_model_text_is_not_used_as_report_data(self):
+        model = FakeModel(True, [dict(role='assistant', content='Объём 127 тыс. т.')])
+        with self.assertRaises(AgentError) as caught:
+            await self.make(model).run(chat_request(action='chat', message='Покажи объём'), 'caller')
+        self.assertEqual(caught.exception.code, 'no_report_data')
+
+    async def test_experiment_does_not_run_with_different_weights(self):
+        analyst = self.make(FakeModel(True))
+        analyst.experiment_digest = 'pinned'
+        with self.assertRaises(AgentError) as caught:
+            await analyst.run(chat_request(action='chat', message='Покажи объём'), 'caller')
+        self.assertEqual(caught.exception.code, 'experiment_model_mismatch')
+        self.assertEqual(self.mcp.calls, [])
 
     async def test_unlisted_tool_is_never_executed(self):
         model=FakeModel(True,[dict(role='assistant',tool_calls=[dict(function=dict(name='execute_sql',arguments=dict(sql='DROP TABLE x')))])])
@@ -141,6 +173,65 @@ class HTTPContractTests(unittest.TestCase):
     def setUp(self):
         self.mcp=FakeMCP()
         self.client=TestClient(create_app(Analyst(model=FakeModel(),client_factory=lambda token:self.mcp)))
+
+    def test_plain_clarification_and_answer_stay_in_one_attempt(self):
+        question = 'Какой период вы имеете в виду?'
+        task = 'Подготовь сводку за нужный период'
+        attempt_id = str(uuid4())
+        model = FakeModel(True, [
+            dict(role='assistant', content=question),
+            dict(role='assistant', tool_calls=[dict(function=dict(name='get_balance_summary',
+                arguments=dict(period=dict(year=2025, month_start=12))))]),
+            dict(role='assistant', content='Данные получены.'),
+        ])
+        client = TestClient(create_app(Analyst(model=model, client_factory=lambda token: self.mcp)))
+        headers = {'Authorization': 'Bearer caller'}
+        with self.assertLogs('balance.agent.audit') as audit:
+            first = client.post('/chat', headers=headers, json=chat_request(
+                action='chat', message=task, task=task, attempt_id=attempt_id).model_dump(mode='json'))
+            self.assertEqual(first.status_code, 200)
+            self.assertEqual(first.json()['data']['kind'], 'clarification')
+            self.assertEqual(first.json()['data']['text'], question)
+            self.assertEqual([name for name, _ in self.mcp.calls], ['get_data_catalog'])
+            second = client.post('/chat', headers=headers, json=chat_request(action='chat', task=task,
+                attempt_id=attempt_id, message='Декабрь 2025', history=[
+                    {'role': 'user', 'content': task}, {'role': 'assistant', 'content': question},
+                ]).model_dump(mode='json'))
+        self.assertEqual(second.status_code, 200)
+        report = second.json()['data']
+        self.assertEqual(report['kind'], 'report')
+        self.assertEqual(report['sources'][0]['period']['month_start'], 12)
+        self.assertEqual(report['agent_tools'], ['get_balance_summary'])
+        self.assertEqual(self.mcp.calls[-1][1]['categories'], ['Бензин'])
+        self.assertIn(task, model.requests[1][-1]['content'])
+        self.assertEqual(model.requests[1][-2]['content'], question)
+        events = [json.loads(line.removeprefix('INFO:balance.agent.audit:')) for line in audit.output]
+        self.assertEqual([event['attempt_id'] for event in events], [attempt_id, attempt_id])
+        self.assertEqual([event['clarification_count'] for event in events], [1, 0])
+
+    def test_failed_fact_selection_records_template_fallback(self):
+        class BrokenFactSelection(FakeModel):
+            async def select_facts(self, facts, question, limit):
+                raise AgentError('invalid_model_evidence', 'Не выбраны факты', 502)
+
+        model = BrokenFactSelection(True, [
+            dict(role='assistant', tool_calls=[dict(function=dict(
+                name='get_balance_summary', arguments=dict(period=dict(year=2025, month_start=11))))]),
+            dict(role='assistant', content='Данные получены.'),
+        ])
+        client = TestClient(create_app(Analyst(model=model, client_factory=lambda token: self.mcp)))
+        with self.assertLogs('balance.agent.audit') as audit:
+            response = client.post('/chat', headers={'Authorization': 'Bearer caller'},
+                json=chat_request(action='chat', message='Покажи объём').model_dump())
+        self.assertEqual(response.status_code, 200)
+        report = response.json()['data']
+        self.assertEqual(report['execution_mode'], 'template')
+        self.assertEqual(report['tables'][0]['rows'][0]['value'], 657)
+        event = json.loads(audit.output[0].removeprefix('INFO:balance.agent.audit:'))
+        self.assertEqual(event['attempted_mode'], 'agent')
+        self.assertEqual(event['execution_mode'], 'template')
+        self.assertEqual(event['model'], model.name)
+        self.assertEqual(event['fallback_reason'], 'invalid_model_evidence')
 
     def test_anonymous_requests_are_denied(self):
         response=self.client.post('/chat',json={})

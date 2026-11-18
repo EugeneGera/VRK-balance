@@ -29,7 +29,8 @@ def create_app(analyst=None):
     async def handle(request:Request):
         request_id,started,clock=str(uuid.uuid4()),datetime.now(timezone.utc).isoformat(),time.monotonic()
         status,action,count='error',request.url.path,0
-        report_id,actor,source_ids,error_code=None,None,[],None
+        report_id, error_code, outcome = None, None, 'error'
+        audit = {}
         try:
             scheme,_,token=request.headers.get('authorization','').partition(' ')
             if scheme.lower()!='bearer' or not token:
@@ -40,6 +41,7 @@ def create_app(analyst=None):
                 async with analyst.client_factory(token) as client:
                     await analyst.call(client,'get_data_catalog',{},[])
                 data=await analyst.model.status()
+                data['profile'] = 'experiment' if analyst.experiment_digest else 'local'
             elif request.url.path=='/filter-values':
                 data=await analyst.filters(token)
             else:
@@ -50,11 +52,13 @@ def create_app(analyst=None):
                     raw.extend(chunk)
                 body=ChatRequest.model_validate_json(raw)
                 action=body.action
-                data=await asyncio.wait_for(analyst.run(body,token),timeout=240)
+                data=await asyncio.wait_for(analyst.run(body,token,audit),timeout=240)
                 count=len(data['tables'])
-                report_id,actor=data['id'],data.get('actor')
-                source_ids=[source['query_id'] for source in data['sources']]
+                outcome = data['kind']
+                report_id = data['id'] if outcome == 'report' else None
             status='ok'
+            if request.url.path != '/chat':
+                outcome = 'metadata'
             return JSONResponse(dict(status='ok',request_id=request_id,data=data))
         except ValidationError:
             error_code='invalid_request'
@@ -71,8 +75,8 @@ def create_app(analyst=None):
         finally:
             logger.info(json.dumps(dict(request_id=request_id,action=action,started_at=started,
                 finished_at=datetime.now(timezone.utc).isoformat(),duration_ms=round((time.monotonic()-clock)*1000,3),
-                status=status,error_code=error_code,returned_tables=count,report_id=report_id,
-                actor=actor,source_query_ids=source_ids),ensure_ascii=False))
+                status=status,outcome=outcome,error_code=error_code,returned_tables=count,report_id=report_id,
+                clarification_count=int(outcome == 'clarification'),**audit),ensure_ascii=False))
 
     return Starlette(routes=[Route('/status',handle),Route('/filter-values',handle),Route('/chat',handle,methods=['POST'])])
 

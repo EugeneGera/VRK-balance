@@ -20,13 +20,23 @@ export interface Source {
   snapshot_id: string; warnings: unknown[]; links: {label: string; url: string}[];
   pagination?: {has_more: boolean; total_count: number};
 }
-export interface Report {
-  id: string; mode: "template" | "local_model"; text: string; tables: ReportTable[]; sources: Source[];
-  context: Context; created_at: string; model: string | null; empty: boolean;
+interface AnalystReply {
+  id: string; text: string; attempt_id: string;
+  profile: "local" | "experiment";
+  execution_mode: "agent" | "compact" | "preset" | "template";
+  model: string | null; model_requested: string; model_digest: string | null;
+  fallback_reason: string | null;
 }
+export interface Report extends AnalystReply {
+  kind: "report";
+  mode: "template" | "local_model"; tables: ReportTable[]; sources: Source[];
+  context: Context; created_at: string; empty: boolean;
+}
+export type AnalystResponse = Report | (AnalystReply & {kind: "clarification"});
 export type Action = "summary" | "comparison" | "details" | "chat";
 export interface ChatInput {
   action: Action; context: Context; baseline?: Period; message?: string;
+  task?: string; attempt_id?: string;
   history: {role: "user" | "assistant"; content: string}[];
 }
 

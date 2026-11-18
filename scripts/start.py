@@ -19,6 +19,7 @@ RUNTIME = ROOT / '.runtime'
 OLLAMA = 'http://127.0.0.1:11434'
 APP = 'http://localhost:3000/balance_comission'
 TRIAL_MODEL = 'qwen3:0.6b'
+EXPERIMENT_MODEL = 'qwen3.5:4b-q4_K_M'
 HTTP = build_opener(ProxyHandler({}))
 
 
@@ -112,7 +113,7 @@ def stop_model():
     pid_file.unlink(missing_ok=True)
 
 
-def select_model(quality):
+def select_model(quality, experiment=False):
     settings = ROOT / '.env.analytics'
     preferred = 'qwen3.5:4b-q4_K_M'
     for line in settings.read_text().splitlines():
@@ -120,7 +121,7 @@ def select_model(quality):
             preferred = shlex.split(line.partition('=')[2])[0]
             break
     installed = installed_models()
-    model = preferred if quality or preferred in installed else TRIAL_MODEL
+    model = EXPERIMENT_MODEL if experiment else preferred if quality or preferred in installed else TRIAL_MODEL
     if model in installed:
         return model
     print(f'Загружаем {model} для первого запуска…', flush=True)
@@ -128,6 +129,21 @@ def select_model(quality):
     if model not in installed_models():
         raise RuntimeError('Модель ещё не появилась в каталоге Ollama.')
     return model
+
+
+def experiment_profile(status):
+    """Pin the exact installed weights and inference settings for this experiment."""
+    if status.get('model') != EXPERIMENT_MODEL or not status.get('digest') or not status.get('settings'):
+        raise RuntimeError('Не удалось определить экспериментальную модель и её настройки.')
+    profile = dict(model=EXPERIMENT_MODEL, digest=status['digest'], settings=status['settings'],
+                   ollama_version=read_json(OLLAMA + '/api/version')['version'])
+    path = RUNTIME / 'experiment-profile.json'
+    if path.exists() and json.loads(path.read_text()) != profile:
+        raise RuntimeError('Веса, настройки или версия Ollama отличаются от зафиксированного профиля эксперимента.')
+    if not path.exists():
+        with path.open('x') as file:
+            json.dump(profile, file, indent=2)
+    return profile
 
 
 def build_services(compose, project, env, rebuild):
@@ -170,7 +186,9 @@ def prepare_database(compose):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--quality', action='store_true')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--quality', action='store_true')
+    group.add_argument('--experiment', action='store_true')
     parser.add_argument('--stop', action='store_true')
     parser.add_argument('--rebuild', action='store_true')
     parser.add_argument('--no-browser', action='store_true')
@@ -200,23 +218,39 @@ def main():
         stop_model()
         return
     start_model()
-    model = select_model(args.quality)
-    env = dict(os.environ, BALANCE_OLLAMA_MODEL=model)
+    model = select_model(args.quality, args.experiment)
+    digest = ''
+    if args.experiment:
+        digest = next((item.get('digest') for item in read_json(OLLAMA + '/api/tags')['models']
+                       if item['name'] == model), None)
+        if not digest:
+            raise RuntimeError('Не удалось получить контрольную сумму весов экспериментальной модели.')
+        pinned = RUNTIME / 'experiment-profile.json'
+        if pinned.exists() and json.loads(pinned.read_text())['digest'] != digest:
+            raise RuntimeError('Веса модели отличаются от зафиксированного профиля эксперимента.')
+    env = dict(os.environ, BALANCE_OLLAMA_MODEL=model, BALANCE_EXPERIMENT_DIGEST=digest)
     build_services(compose, project, env, args.rebuild)
     prepare_database(compose)
     run(*compose, 'up', '-d', '--no-deps', *services, env=env)
 
     def ready():
         result = read_json('http://127.0.0.1:5001/assistant/status')
-        return result.get('data', {}).get('ready') and result['data']['model'] == model
+        status = result.get('data', {})
+        expected_profile = 'experiment' if args.experiment else 'local'
+        if status.get('ready') and status.get('model') == model and status.get('profile') == expected_profile:
+            return status
 
-    wait_for(ready, 'Проверяем сервис отчётов…', 120)
+    status = wait_for(ready, 'Проверяем сервис отчётов…', 120)
+    print('Проверяем пробный ответ модели…', flush=True)
     answer = read_json(OLLAMA + '/api/chat', {
         'model': model, 'messages': [{'role': 'user', 'content': 'Ответь одним словом: готово'}],
-        'stream': False, 'think': False, 'options': {'num_ctx': 8192, 'num_predict': 24},
+        'stream': False, 'think': False, 'keep_alive': '2m',
+        'options': {key: status['settings'][key] for key in ('num_ctx', 'seed', 'temperature', 'num_predict')},
     }, timeout=120)
     if not answer['message'].get('content'):
         raise RuntimeError('Модель не вернула пробный ответ.')
+    if args.experiment:
+        experiment_profile(status)
 
     def frontend_ready():
         with fetch(APP) as response:

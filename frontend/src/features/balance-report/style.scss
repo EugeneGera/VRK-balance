@@ -32,6 +32,9 @@
     border-bottom: 1px solid var(--xenon-color-border-secondary, #dce5eb);
   }
 
+  .balance-report-modes { display: flex; flex-wrap: wrap; row-gap: 4px; }
+  .balance-report-composer .balance-report-form-buttons { display: flex; gap: 8px; justify-content: flex-end; }
+
   .balance-report-actions {
     display: flex;
     align-items: flex-end;

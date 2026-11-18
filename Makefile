@@ -1,10 +1,12 @@
-.PHONY: start stop start-full
+.PHONY: start stop start-full start-experiment
 start:
 	python3 scripts/start.py
 stop:
 	python3 scripts/start.py --stop
 start-full:
 	python3 scripts/start.py --quality
+start-experiment:
+	python3 scripts/start.py --experiment
 
 build-dev:
 	docker compose -f docker-compose.dev.yaml up --build -d

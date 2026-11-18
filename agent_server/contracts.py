@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from mcp_server.server import Period
@@ -41,9 +42,11 @@ class ChatRequest(BaseModel):
     context: Context
     baseline: Period | None = None
     message: str = Field(default='', max_length=4000)
+    task: str = Field(default='', max_length=4000)
+    attempt_id: UUID | None = None
     history: list[Message] = Field(default_factory=list, max_length=8)
 
-    @field_validator('message')
+    @field_validator('message', 'task')
     @classmethod
     def trim(cls, value):
         return value.strip()

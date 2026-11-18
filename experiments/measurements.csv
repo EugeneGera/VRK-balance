@@ -1,1 +1,1 @@
-task_id,condition,participant_id,dataset_snapshot_id,filters,started_at,verified_at,total_seconds,clarification_count,correction_count,correctness_passed,completeness_passed,report_reference,notes
+task_id,condition,participant_id,attempt_id,dataset_snapshot_id,filters,started_at,verified_at,total_seconds,clarification_count,correction_count,correctness_passed,completeness_passed,report_reference,notes

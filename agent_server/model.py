@@ -7,6 +7,9 @@ from agent_server.contracts import AgentError
 
 
 class LocalModel:
+    settings = dict(num_ctx=8192, seed=42, temperature=0.2, num_predict=1800,
+                    fact_temperature=0, fact_num_predict=192, think=False)
+
     def __init__(self, url=None, name=None, transport=None):
         self.url = (url or os.environ.get('BALANCE_OLLAMA_URL', 'http://127.0.0.1:11434')).rstrip('/')
         self.name = name or os.environ.get('BALANCE_OLLAMA_MODEL', 'qwen3.5:4b-q4_K_M')
@@ -19,6 +22,7 @@ class LocalModel:
 
     async def status(self):
         ready, reason = False, 'ollama_unavailable'
+        digest = None
         try:
             async with httpx.AsyncClient(timeout=3, trust_env=False, transport=self.transport) as client:
                 response = await client.get(self.url+'/api/tags')
@@ -26,19 +30,22 @@ class LocalModel:
                 models = response.json()['models']
             installed = next((item for item in models if item.get('name') == self.name or item.get('model') == self.name),None)
             ready = installed is not None
+            digest = installed.get('digest') if installed else None
             reason = None if ready else 'model_not_installed'
         except (httpx.HTTPError, ValueError, KeyError, TypeError):
             pass
-        return dict(ready=ready, reason=reason, provider='ollama', model=self.name, local=True, templates_available=True)
+        return dict(ready=ready, reason=reason, provider='ollama', model=self.name, digest=digest,
+                    local=True, templates_available=True, settings=self.settings)
 
     async def reply(self, messages, tools, format_schema=None):
-        body = dict(model=self.name, messages=messages, stream=False, think=False, keep_alive='2m',
-                    options=dict(num_ctx=8192, num_predict=1800, temperature=0.2))
+        options = {key: self.settings[key] for key in ('num_ctx', 'seed', 'temperature', 'num_predict')}
+        body = dict(model=self.name, messages=messages, stream=False, think=self.settings['think'],
+                    keep_alive='2m', options=options)
         if tools:
             body['tools'] = tools
         if format_schema is not None:
             body['format'] = format_schema
-            body['options'].update(num_predict=192, temperature=0)
+            options.update(num_predict=self.settings['fact_num_predict'], temperature=self.settings['fact_temperature'])
         try:
             async with httpx.AsyncClient(timeout=90, trust_env=False, transport=self.transport) as client:
                 response = await client.post(self.url+'/api/chat', json=body)
